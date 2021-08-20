@@ -1,12 +1,14 @@
 // ==UserScript==
 // @name deworker-helper
 // @description remember viewed videos
-// @version 0.0.1
+// @version 0.0.2
 // @match https://deworker.pro/edu*
 // ==/UserScript==
 
-const storageKey = '_watchProgress'
-const watchProgress = JSON.parse(localStorage.getItem(storageKey)) || {}
+const progressStorageKey = '_watchProgress'
+const settingsStorageKey = '_watchSettings'
+let watchProgress = JSON.parse(localStorage.getItem(progressStorageKey)) || {}
+let settings = JSON.parse(localStorage.getItem(settingsStorageKey)) || {}
 const urlHandlers = {
   '^/edu$': episodeList,
   '^/edu/series/.+': episode,
@@ -23,9 +25,18 @@ for (const regexp in urlHandlers) {
 
 async function episode() {
   const player = await loadPlayer()
+  if (settings.volume) {
+    player.setVolume(settings.volume)
+  }
+  if (settings.playbackRate) {
+    player.setPlaybackRate(settings.playbackRate)
+  }
   player.on('ended', () => {
     markAsViewed(window.location.pathname)
   })
+
+  player.on('volumechange', updateSettings)
+  player.on('playbackratechange', updateSettings)
 }
 
 function episodeList() {
@@ -89,5 +100,13 @@ function injectStyles() {
 }
 
 function updateStorage() {
-  localStorage.setItem(storageKey, JSON.stringify(watchProgress))
+  localStorage.setItem(progressStorageKey, JSON.stringify(watchProgress))
+}
+
+function updateSettings(newSettings) {
+  settings = {
+    ...settings,
+    ...newSettings
+  }
+  localStorage.setItem(settingsStorageKey, JSON.stringify(settings))
 }
