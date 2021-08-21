@@ -16,34 +16,74 @@ const urlHandlers = {
 const baseUrl = 'https://deworker.pro'
 
 const watchedClass = 'watched'
+const unfinishedClass = 'unfinished'
 
-for (const regexp in urlHandlers) {
-  if ((new RegExp(regexp)).test(window.location.pathname)) {
-    urlHandlers[regexp]();
+  ; (function () {
+    const pushState = history.pushState;
+
+    history.pushState = function () {
+      pushState.apply(history, arguments);
+      window.dispatchEvent(new Event('pushstate'));
+      window.dispatchEvent(new Event('locationchange'));
+    }
+
+    window.addEventListener('popstate', function () {
+      window.dispatchEvent(new Event('locationchange'))
+    })
+  })()
+
+window.addEventListener('locationchange', run);
+window.addEventListener('load', run);
+
+function run() {
+  for (const regexp in urlHandlers) {
+    if ((new RegExp(regexp)).test(window.location.pathname)) {
+      urlHandlers[regexp]();
+    }
   }
 }
 
 async function episode() {
   const player = await loadPlayer()
+  const url = getCurrentEpisodeUrl()
+  if (!watchProgress[url]) {
+    watchProgress[url] = { seconds: 0 }
+  }
+
   if (settings.volume) {
     player.setVolume(settings.volume)
   }
   if (settings.playbackRate) {
     player.setPlaybackRate(settings.playbackRate)
   }
-  player.on('ended', () => {
-    markAsViewed(window.location.pathname)
-  })
+  if (!watchProgress[url].watched && watchProgress[url].seconds) {
+    player.setCurrentTime(watchProgress[url].seconds)
+  }
 
+  player.on('ended', () => {
+    markAsViewed(url)
+  })
   player.on('volumechange', updateSettings)
   player.on('playbackratechange', updateSettings)
+  player.on('timeupdate', (currentProgress) => {
+    const diff = currentProgress.seconds - watchProgress[url].seconds
+    if (diff < 0 || diff >= 10) {
+      watchProgress[url] = currentProgress
+      saveProgress()
+    }
+  })
 }
 
 function episodeList() {
   injectStyles()
+  console.log('run episodes')
   for (const link of document.querySelectorAll('.edu-items-item a.thumb')) {
-    if (watchProgress[link.href.replace(baseUrl, '')] == 100) {
+    if (watchProgress[link.href.replace(baseUrl, '')]?.watched) {
+      console.log(link.href, 'watched')
       link.classList.add(watchedClass)
+    } else if (watchProgress[link.href.replace(baseUrl, '')]?.percent) {
+      console.log(link.href, 'unfinish')
+      link.classList.add(unfinishedClass)
     }
   }
 }
@@ -61,8 +101,8 @@ function loadPlayer() {
 }
 
 function markAsViewed(url) {
-  watchProgress[url] = 100
-  updateStorage()
+  watchProgress[url].watched = true
+  saveProgress()
 }
 
 function injectStyles() {
@@ -93,13 +133,23 @@ function injectStyles() {
     left: 0;
     width: 100%;
 }
+
+.edu-items-item .thumb.unfinished::after {
+    display: block;
+    width: 100%;
+    background: #5699EE;
+    height: 5px;
+    content: ' ';
+    position: absolute;
+    botton: 0;
+}
 `
   const tag = document.createElement('style')
   tag.innerText = styles
   document.head.appendChild(tag)
 }
 
-function updateStorage() {
+function saveProgress() {
   localStorage.setItem(progressStorageKey, JSON.stringify(watchProgress))
 }
 
@@ -109,4 +159,8 @@ function updateSettings(newSettings) {
     ...newSettings
   }
   localStorage.setItem(settingsStorageKey, JSON.stringify(settings))
+}
+
+function getCurrentEpisodeUrl() {
+  return window.location.pathname.replace(baseUrl, '')
 }
