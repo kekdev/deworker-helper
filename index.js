@@ -2,7 +2,7 @@
 // @name deworker-helper
 // @description remember viewed videos
 // @version 0.0.2
-// @match https://deworker.pro/edu*
+// @match https://deworker.pro/*
 // ==/UserScript==
 
 const progressStorageKey = '_watchProgress'
@@ -10,30 +10,24 @@ const settingsStorageKey = '_watchSettings'
 let watchProgress = JSON.parse(localStorage.getItem(progressStorageKey)) || {}
 let settings = JSON.parse(localStorage.getItem(settingsStorageKey)) || {}
 const urlHandlers = {
-  '^/edu$': episodeList,
-  '^/edu/series/.+': episode,
+  '^/edu/series/.+/.+$': episode,
+  '^/edu': episodeList,
 }
 const baseUrl = 'https://deworker.pro'
 
 const watchedClass = 'watched'
 const unfinishedClass = 'unfinished'
+const styleTagId = '_deworker-helper'
 
-  ; (function () {
-    const pushState = history.pushState;
+window.addEventListener('load', () => {
+  run()
+})
 
-    history.pushState = function () {
-      pushState.apply(history, arguments);
-      window.dispatchEvent(new Event('pushstate'));
-      window.dispatchEvent(new Event('locationchange'));
-    }
-
-    window.addEventListener('popstate', function () {
-      window.dispatchEvent(new Event('locationchange'))
-    })
-  })()
-
-window.addEventListener('locationchange', run);
-window.addEventListener('load', run);
+// use nextjs router events
+// cause there is no method to detect url change for now
+next?.router.events.on('routeChangeComplete', () => {
+  run()
+})
 
 function run() {
   for (const regexp in urlHandlers) {
@@ -76,15 +70,18 @@ async function episode() {
 
 function episodeList() {
   injectStyles()
-  console.log('run episodes')
   for (const link of document.querySelectorAll('.edu-items-item a.thumb')) {
-    if (watchProgress[link.href.replace(baseUrl, '')]?.watched) {
-      console.log(link.href, 'watched')
-      link.classList.add(watchedClass)
-    } else if (watchProgress[link.href.replace(baseUrl, '')]?.percent) {
-      console.log(link.href, 'unfinish')
-      link.classList.add(unfinishedClass)
+    if (!watchProgress[link.href.replace(baseUrl, '')]) {
+      continue
     }
+
+    const percent = parseFloat(watchProgress[link.href.replace(baseUrl, '')]?.percent) * 100
+    if (percent < 98) {
+      link.classList.add(unfinishedClass)
+      link.classList.add(unfinishedClass + '-' + Math.floor(percent / 20))
+      continue
+    }
+    link.classList.add(watchedClass)
   }
 }
 
@@ -106,6 +103,11 @@ function markAsViewed(url) {
 }
 
 function injectStyles() {
+  if (document.getElementById(styleTagId)) {
+    return
+  }
+
+  // todo: replace width styles with attr() function when implemented
   const styles = `
 .edu-items .thumb.watched::before {
   background-color: rgba(33,33,33,.6);
@@ -118,34 +120,48 @@ function injectStyles() {
 }
 
 .edu-items-item .thumb.watched::after {
-    display: block;
-    position: absolute;
-    z-index: 2;
-    border-top: 1px solid #fff;
-    border-bottom: 1px solid #fff;
-    content: 'Просмотрено';
-    color: #fff;
-    background-color: rgba(33,33,33,.9);
-    text-align: center;
-    transform: translateY(-50%);
-    font-size: 1.1em;
-    top: 50%;
-    left: 0;
-    width: 100%;
+  display: block;
+  position: absolute;
+  z-index: 2;
+  border-top: 1px solid #fff;
+  border-bottom: 1px solid #fff;
+  content: 'Просмотрено';
+  color: #fff;
+  background-color: rgba(33,33,33,.9);
+  text-align: center;
+  transform: translateY(-50%);
+  font-size: 1.1em;
+  top: 50%;
+  left: 0;
+  width: 100%;
 }
 
 .edu-items-item .thumb.unfinished::after {
-    display: block;
-    width: 100%;
-    background: #5699EE;
-    height: 5px;
-    content: ' ';
-    position: absolute;
-    botton: 0;
+  display: block;
+  background: #5699EE;
+  height: 8px;
+  width: 0;
+  content: ' ';
+  position: absolute;
+  bottom: 0;
 }
+.edu-items-item .thumb.unfinished.unfinished-1::after {
+  width: 20%;
+}
+.edu-items-item .thumb.unfinished.unfinished-2::after {
+  width: 40%;
+}
+.edu-items-item .thumb.unfinished.unfinished-3::after {
+  width: 60%;
+}
+.edu-items-item .thumb.unfinished.unfinished-4::after {
+  width: 80%;
+}
+
 `
   const tag = document.createElement('style')
-  tag.innerText = styles
+  tag.id = styleTagId
+  tag.textContent = styles
   document.head.appendChild(tag)
 }
 
