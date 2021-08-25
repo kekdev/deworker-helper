@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name deworkerpro-prettify
 // @description add missing features to deworker.pro
-// @version 1.0.0
+// @version 1.0.1
 // @match https://deworker.pro/*
 // ==/UserScript==
 
@@ -46,17 +46,18 @@ async function episode() {
 
 function episodeList() {
   for (const link of document.querySelectorAll('.edu-items-item a.thumb')) {
-    if (!watchHistory[link.href.replace(baseUrl, '')]) {
+    const url = link.href.replace(baseUrl, '')
+    if (!watchHistory[url]) {
       continue
     }
 
-    const percent = parseFloat(watchHistory[link.href.replace(baseUrl, '')]?.percent) * 100
-    if (percent < 98) {
-      link.classList.add(unfinishedClass)
-      link.classList.add(unfinishedClass + '-' + Math.floor(percent / 20))
+    const percent = parseFloat(watchHistory[url]?.percent || 0) * 100
+    if (watchHistory[url].watched || percent > 98) {
+      link.classList.add(watchedClass)
       continue
     }
-    link.classList.add(watchedClass)
+    link.classList.add(unfinishedClass)
+    link.classList.add(unfinishedClass + '-' + Math.floor(percent / 20))
   }
 }
 
@@ -123,6 +124,9 @@ function injectStyles() {
   content: ' ';
   position: absolute;
   bottom: 0;
+}
+.edu-items-item .thumb.unfinished.unfinished-0::after {
+  width: 5%;
 }
 .edu-items-item .thumb.unfinished.unfinished-1::after {
   width: 20%;
