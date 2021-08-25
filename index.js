@@ -17,7 +17,7 @@ const baseUrl = 'https://deworker.pro'
 
 const watchedClass = 'watched'
 const unfinishedClass = 'unfinished'
-const styleTagId = '_deworker-helper'
+const styleTagId = 'deworker-prettify'
 
 window.addEventListener('load', () => {
   run()
