@@ -1,24 +1,20 @@
 // ==UserScript==
-// @name deworker-helper
-// @description remember viewed videos
-// @version 0.0.2
+// @name deworkerpro-prettify
+// @description add missing features to deworker.pro
+// @version 1.0.0
 // @match https://deworker.pro/*
 // ==/UserScript==
 
-const progressStorageKey = '_watchProgress'
-const settingsStorageKey = '_watchSettings'
-let watchProgress = JSON.parse(localStorage.getItem(progressStorageKey)) || {}
-let settings = JSON.parse(localStorage.getItem(settingsStorageKey)) || {}
+const storageKey = 'deworkerpro-prettify'
+const { watchHistory = {}, settings = {} } = JSON.parse(localStorage.getItem(storageKey)) || {}
 const urlHandlers = {
   '^/edu/series/.+/.+$': episode,
   '^/edu': episodeList,
 }
 const baseUrl = 'https://deworker.pro'
-
 const watchedClass = 'watched'
 const unfinishedClass = 'unfinished'
-const styleTagId = 'deworker-prettify'
-const cssClass = 'deworker-prettify'
+const cssMark = 'deworker-prettify'
 
 window.addEventListener('load', () => {
   injectStyles()
@@ -40,44 +36,21 @@ function run() {
 }
 
 async function episode() {
-  const player = await loadPlayer()
   const url = getCurrentEpisodeUrl()
-  if (!watchProgress[url]) {
-    watchProgress[url] = { seconds: 0 }
+  if (!watchHistory[url]) {
+    watchHistory[url] = { seconds: 0 }
   }
-
-  if (settings.volume) {
-    player.setVolume(settings.volume)
-  }
-  if (settings.playbackRate) {
-    player.setPlaybackRate(settings.playbackRate)
-  }
-  if (!watchProgress[url].watched && watchProgress[url].seconds) {
-    player.setCurrentTime(watchProgress[url].seconds)
-  }
-
-  player.on('ended', () => {
-    markAsViewed(url)
-  })
-  player.on('volumechange', updateSettings)
-  player.on('playbackratechange', updateSettings)
-  player.on('timeupdate', (currentProgress) => {
-    const diff = currentProgress.seconds - watchProgress[url].seconds
-    if (diff < 0 || diff >= 10) {
-      watchProgress[url] = currentProgress
-      saveProgress()
-    }
-  })
+  initPlayer()
   injectWatchedButton()
 }
 
 function episodeList() {
   for (const link of document.querySelectorAll('.edu-items-item a.thumb')) {
-    if (!watchProgress[link.href.replace(baseUrl, '')]) {
+    if (!watchHistory[link.href.replace(baseUrl, '')]) {
       continue
     }
 
-    const percent = parseFloat(watchProgress[link.href.replace(baseUrl, '')]?.percent) * 100
+    const percent = parseFloat(watchHistory[link.href.replace(baseUrl, '')]?.percent) * 100
     if (percent < 98) {
       link.classList.add(unfinishedClass)
       link.classList.add(unfinishedClass + '-' + Math.floor(percent / 20))
@@ -100,16 +73,16 @@ function loadPlayer() {
 }
 
 function markAsViewed(url) {
-  watchProgress[url].watched = true
-  saveProgress()
+  watchHistory[url].watched = true
+  saveHistoryAndSettings()
 }
 function toggleWatched(url) {
-  watchProgress[url].watched = !watchProgress[url].watched
-  saveProgress()
+  watchHistory[url].watched = !watchHistory[url].watched
+  saveHistoryAndSettings()
 }
 
 function injectStyles() {
-  if (document.getElementById(styleTagId)) {
+  if (document.getElementById(cssMark)) {
     return
   }
 
@@ -189,21 +162,18 @@ button.deworker-prettify.disabled::before {
 }
 `
   const tag = document.createElement('style')
-  tag.id = styleTagId
+  tag.id = cssMark
   tag.textContent = styles
   document.head.appendChild(tag)
 }
 
-function saveProgress() {
-  localStorage.setItem(progressStorageKey, JSON.stringify(watchProgress))
+function saveHistoryAndSettings() {
+  localStorage.setItem(storageKey, JSON.stringify({ watchHistory, settings }))
 }
 
 function updateSettings(newSettings) {
-  settings = {
-    ...settings,
-    ...newSettings
-  }
-  localStorage.setItem(settingsStorageKey, JSON.stringify(settings))
+  Object.assign(settings, newSettings)
+  saveHistoryAndSettings()
 }
 
 function getCurrentEpisodeUrl() {
@@ -212,7 +182,7 @@ function getCurrentEpisodeUrl() {
 
 function injectWatchedButton() {
   const button = document.createElement('button')
-  button.classList.add(cssClass)
+  button.classList.add(cssMark)
   watchedButtonUpdate(button)
 
   button.addEventListener('click', () => {
@@ -223,7 +193,7 @@ function injectWatchedButton() {
 }
 
 function watchedButtonUpdate(button) {
-  if (watchProgress[getCurrentEpisodeUrl()].watched) {
+  if (watchHistory[getCurrentEpisodeUrl()].watched) {
     button.textContent = 'Просмотрено'
     button.classList.add('disabled')
     return
@@ -231,4 +201,36 @@ function watchedButtonUpdate(button) {
 
   button.textContent = 'Отметить просмотренным'
   button.classList.remove('disabled')
+}
+
+function restorePlayerSettings(player) {
+  if (settings.volume) {
+    player.setVolume(settings.volume)
+  }
+  if (settings.playbackRate) {
+    player.setPlaybackRate(settings.playbackRate)
+  }
+  const url = getCurrentEpisodeUrl()
+  if (!watchHistory[url].watched && watchHistory[url].seconds) {
+    player.setCurrentTime(watchHistory[url].seconds)
+  }
+}
+
+async function initPlayer() {
+  const player = await loadPlayer()
+
+  restorePlayerSettings(player)
+
+  player.on('ended', () => {
+    markAsViewed(url)
+  })
+  player.on('volumechange', updateSettings)
+  player.on('playbackratechange', updateSettings)
+  player.on('timeupdate', (currentProgress) => {
+    const diff = currentProgress.seconds - watchHistory[url].seconds
+    if (diff < 0 || diff >= 10) {
+      watchHistory[url] = currentProgress
+      saveHistoryAndSettings()
+    }
+  })
 }
