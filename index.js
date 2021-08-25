@@ -18,6 +18,7 @@ const baseUrl = 'https://deworker.pro'
 const watchedClass = 'watched'
 const unfinishedClass = 'unfinished'
 const styleTagId = 'deworker-prettify'
+const cssClass = 'deworker-prettify'
 
 window.addEventListener('load', () => {
   injectStyles()
@@ -67,6 +68,7 @@ async function episode() {
       saveProgress()
     }
   })
+  injectWatchedButton()
 }
 
 function episodeList() {
@@ -99,6 +101,10 @@ function loadPlayer() {
 
 function markAsViewed(url) {
   watchProgress[url].watched = true
+  saveProgress()
+}
+function toggleWatched(url) {
+  watchProgress[url].watched = !watchProgress[url].watched
   saveProgress()
 }
 
@@ -157,7 +163,30 @@ function injectStyles() {
 .edu-items-item .thumb.unfinished.unfinished-4::after {
   width: 80%;
 }
-
+button.deworker-prettify {
+  background-color: #337ab7;
+  border: 1px solid #337ab7;
+  color: white;
+  cursor: pointer;
+  font-size: .7em;
+  margin-left: 1em;
+  padding: 4px 8px;
+}
+button.deworker-prettify::before {
+  content: '👁';
+  margin-right: 3px;
+  width: 100px;
+}
+button.deworker-prettify.disabled {
+  background-color: #aaa;
+  border-color: #aaa;
+}
+button.deworker-prettify.disabled::before {
+  content: '✓';
+  color: green;
+  margin-right: 3px;
+  width: 100px;
+}
 `
   const tag = document.createElement('style')
   tag.id = styleTagId
@@ -179,4 +208,27 @@ function updateSettings(newSettings) {
 
 function getCurrentEpisodeUrl() {
   return window.location.pathname.replace(baseUrl, '')
+}
+
+function injectWatchedButton() {
+  const button = document.createElement('button')
+  button.classList.add(cssClass)
+  watchedButtonUpdate(button)
+
+  button.addEventListener('click', () => {
+    toggleWatched(getCurrentEpisodeUrl())
+    watchedButtonUpdate(button)
+  })
+  document.querySelector('.content-wrapper h1').appendChild(button)
+}
+
+function watchedButtonUpdate(button) {
+  if (watchProgress[getCurrentEpisodeUrl()].watched) {
+    button.textContent = 'Просмотрено'
+    button.classList.add('disabled')
+    return
+  }
+
+  button.textContent = 'Отметить просмотренным'
+  button.classList.remove('disabled')
 }
