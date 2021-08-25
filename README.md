@@ -14,6 +14,7 @@ Add missing features to https://deworker.pro/
 Script stores data in localStorage
 
 *TODO*
-* Mark episode as watched
+
+* ~~Mark episode as watched~~
 * Backup/restore data
 * Store data in remote storages (?)
