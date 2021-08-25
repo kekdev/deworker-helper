@@ -20,6 +20,7 @@ const unfinishedClass = 'unfinished'
 const styleTagId = 'deworker-prettify'
 
 window.addEventListener('load', () => {
+  injectStyles()
   run()
 })
 
@@ -69,7 +70,6 @@ async function episode() {
 }
 
 function episodeList() {
-  injectStyles()
   for (const link of document.querySelectorAll('.edu-items-item a.thumb')) {
     if (!watchProgress[link.href.replace(baseUrl, '')]) {
       continue
