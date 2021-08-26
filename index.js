@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name deworkerpro-prettify
 // @description add missing features to deworker.pro
-// @version 1.0.1
+// @version 1.0.2
 // @match https://deworker.pro/*
 // ==/UserScript==
 
