@@ -5,27 +5,28 @@
 // @match https://deworker.pro/*
 // ==/UserScript==
 
-const storageKey = 'deworkerpro-prettify'
-const { watchHistory = {}, settings = {} } = JSON.parse(localStorage.getItem(storageKey)) || {}
+const storageKey = 'deworkerpro-prettify';
+const { watchHistory = {}, settings = {} } =
+  JSON.parse(localStorage.getItem(storageKey)) || {};
 const urlHandlers = {
   '^/edu/series/.+/.+$': episode,
   '^/edu': episodeList,
-}
-const baseUrl = 'https://deworker.pro'
-const watchedClass = 'watched'
-const unfinishedClass = 'unfinished'
-const cssMark = 'deworker-prettify'
+};
+const baseUrl = 'https://deworker.pro';
+const watchedClass = 'watched';
+const unfinishedClass = 'unfinished';
+const cssMark = 'deworker-prettify';
 
 window.addEventListener('load', () => {
-  injectStyles()
-  run()
-})
+  injectStyles();
+  run();
+});
 
 // use nextjs router events
 // cause there is no method to detect url change for now
-next?.router.events.on('routeChangeComplete', () => {
-  run()
-})
+window?.next?.router.events.on('routeChangeComplete', () => {
+  run();
+});
 
 function run() {
   for (const regexp in urlHandlers) {
@@ -36,55 +37,58 @@ function run() {
 }
 
 async function episode() {
-  const url = getCurrentEpisodeUrl()
+  const url = getCurrentEpisodeUrl();
   if (!watchHistory[url]) {
-    watchHistory[url] = { seconds: 0 }
+    watchHistory[url] = { seconds: 0 };
   }
-  initPlayer()
-  injectWatchedButton()
+  initPlayer();
+  injectWatchedButton();
 }
 
 function episodeList() {
   for (const link of document.querySelectorAll('.edu-items-item a.thumb')) {
-    const url = link.href.replace(baseUrl, '')
+    const url = link.href.replace(baseUrl, '');
     if (!watchHistory[url]) {
-      continue
+      continue;
     }
 
-    const percent = parseFloat(watchHistory[url]?.percent || 0) * 100
+    const percent = parseFloat(watchHistory[url]?.percent || 0) * 100;
     if (watchHistory[url].watched || percent > 98) {
-      link.classList.add(watchedClass)
-      continue
+      link.classList.add(watchedClass);
+      continue;
     }
-    link.classList.add(unfinishedClass)
-    link.classList.add(unfinishedClass + '-' + Math.floor(percent / 20))
+    link.classList.add(unfinishedClass);
+    link.classList.add(unfinishedClass + '-' + Math.floor(percent / 20));
   }
 }
 
 function loadPlayer() {
-  const script = document.createElement('script')
-  script.src = 'https://player.vimeo.com/api/player.js'
-  document.body.appendChild(script)
+  const script = document.createElement('script');
+  script.src = 'https://player.vimeo.com/api/player.js';
+  document.body.appendChild(script);
 
   return new Promise((resolve, reject) => {
     script.addEventListener('load', () => {
-      resolve(new Vimeo.Player(document.querySelector('iframe')))
-    })
-  })
+      if (window.Vimeo) {
+        resolve(new window.Vimeo.Player(document.querySelector('iframe')));
+      }
+      reject();
+    });
+  });
 }
 
 function markAsViewed(url) {
-  watchHistory[url].watched = true
-  saveHistoryAndSettings()
+  watchHistory[url].watched = true;
+  saveHistoryAndSettings();
 }
 function toggleWatched(url) {
-  watchHistory[url].watched = !watchHistory[url].watched
-  saveHistoryAndSettings()
+  watchHistory[url].watched = !watchHistory[url].watched;
+  saveHistoryAndSettings();
 }
 
 function injectStyles() {
   if (document.getElementById(cssMark)) {
-    return
+    return;
   }
 
   // todo: replace width styles with attr() function when implemented
@@ -164,77 +168,78 @@ button.deworker-prettify.disabled::before {
   margin-right: 3px;
   width: 100px;
 }
-`
-  const tag = document.createElement('style')
-  tag.id = cssMark
-  tag.textContent = styles
-  document.head.appendChild(tag)
+`;
+  const tag = document.createElement('style');
+  tag.id = cssMark;
+  tag.textContent = styles;
+  document.head.appendChild(tag);
 }
 
 function saveHistoryAndSettings() {
-  localStorage.setItem(storageKey, JSON.stringify({ watchHistory, settings }))
+  localStorage.setItem(storageKey, JSON.stringify({ watchHistory, settings }));
 }
 
 function updateSettings(newSettings) {
-  Object.assign(settings, newSettings)
-  saveHistoryAndSettings()
+  Object.assign(settings, newSettings);
+  saveHistoryAndSettings();
 }
 
 function getCurrentEpisodeUrl() {
-  return window.location.pathname.replace(baseUrl, '')
+  return window.location.pathname.replace(baseUrl, '');
 }
 
 function injectWatchedButton() {
-  const button = document.createElement('button')
-  button.classList.add(cssMark)
-  watchedButtonUpdate(button)
+  const button = document.createElement('button');
+  button.classList.add(cssMark);
+  watchedButtonUpdate(button);
 
   button.addEventListener('click', () => {
-    toggleWatched(getCurrentEpisodeUrl())
-    watchedButtonUpdate(button)
-  })
-  document.querySelector('.content-wrapper h1').appendChild(button)
+    toggleWatched(getCurrentEpisodeUrl());
+    watchedButtonUpdate(button);
+  });
+  document.querySelector('.content-wrapper h1').appendChild(button);
 }
 
 function watchedButtonUpdate(button) {
   if (watchHistory[getCurrentEpisodeUrl()].watched) {
-    button.textContent = 'Просмотрено'
-    button.classList.add('disabled')
-    return
+    button.textContent = 'Просмотрено';
+    button.classList.add('disabled');
+    return;
   }
 
-  button.textContent = 'Отметить просмотренным'
-  button.classList.remove('disabled')
+  button.textContent = 'Отметить просмотренным';
+  button.classList.remove('disabled');
 }
 
 function restorePlayerSettings(player) {
   if (settings.volume) {
-    player.setVolume(settings.volume)
+    player.setVolume(settings.volume);
   }
   if (settings.playbackRate) {
-    player.setPlaybackRate(settings.playbackRate)
+    player.setPlaybackRate(settings.playbackRate);
   }
-  const url = getCurrentEpisodeUrl()
+  const url = getCurrentEpisodeUrl();
   if (!watchHistory[url].watched && watchHistory[url].seconds) {
-    player.setCurrentTime(watchHistory[url].seconds)
+    player.setCurrentTime(watchHistory[url].seconds);
   }
 }
 
 async function initPlayer() {
-  const player = await loadPlayer()
+  const player = await loadPlayer();
+  const url = getCurrentEpisodeUrl();
 
-  restorePlayerSettings(player)
+  restorePlayerSettings(player);
 
   player.on('ended', () => {
-    markAsViewed(url)
-  })
-  player.on('volumechange', updateSettings)
-  player.on('playbackratechange', updateSettings)
+    markAsViewed(url);
+  });
+  player.on('volumechange', updateSettings);
+  player.on('playbackratechange', updateSettings);
   player.on('timeupdate', (currentProgress) => {
-    const diff = currentProgress.seconds - watchHistory[url].seconds
+    const diff = currentProgress.seconds - watchHistory[url].seconds;
     if (diff < 0 || diff >= 10) {
-      watchHistory[url] = currentProgress
-      saveHistoryAndSettings()
+      watchHistory[url] = currentProgress;
+      saveHistoryAndSettings();
     }
-  })
+  });
 }
